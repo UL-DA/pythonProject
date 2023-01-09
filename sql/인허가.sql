@@ -1,26 +1,71 @@
-
 -- test1
 with date as (
     select '202211'::text as base_ym
 )
-select count(*)
+select *
 from (
 	select sigungu_cd||bjdong_cd||case when plat_gb_cd = '0' then '1' else plat_gb_cd end||bun||ji as pnu, *
 	from m1.building_permit_info
 	where arch_gb_cd_nm in ('신축','증축','개축','대수선','용도변경','이전') -- 기획서 조건 반영
 	and arch_pms_day > 2020-01-01 -- 허가일 기준 3년 데이터
 	and base_ym = (select base_ym from date) -- 기준월
+	and mgm_bldrgst_pk = '44130-100154598'
 ) as t1
 left join (
 	select sigungu_cd||bjdong_cd||case when plat_gb_cd = '0' then '1' else plat_gb_cd end||bun||ji as pnu, *
 	from m1.building_permit_flr_info
-	where base_ym = (select base_ym from date) -- 기준월
+	where base_ym = (select base_ym from date) -- 기준월 
+	and mgm_bldrgst_pk = '44130-100154598'
 ) as t2
 	on t1.mgm_bldrgst_pk = t2.mgm_bldrgst_pk
 where t1.pnu notnull and t2.pnu notnull
 limit 50;
 
 
+-- test2
+with date as (
+    select '202211'::text as base_ym
+)
+select case when t2.main_purps_cd_nm isnull then t1.main_purps_cd_nm else t2.main_purps_cd_nm end -- 주용도
+from (
+	select sigungu_cd||bjdong_cd||case when plat_gb_cd = '0' then '1' else plat_gb_cd end||bun||ji as pnu, *
+	from m1.building_permit_info
+	where arch_gb_cd_nm in ('신축','증축','개축','대수선','용도변경','이전') -- 허가구분 조건
+	and arch_pms_day > 2020-01-01 -- 허가일 기준 3년 데이터
+	and base_ym = (select base_ym from date) -- 기준월
+	and substring(sigungu_cd||bjdong_cd||case when plat_gb_cd = '0' then '1' else plat_gb_cd end||bun||ji, 1, 2) = '44' -- test =============================================================
+) as t1
+left join (
+	select sigungu_cd||bjdong_cd||case when plat_gb_cd = '0' then '1' else plat_gb_cd end||bun||ji as pnu, *
+	from m1.building_permit_flr_info
+	where base_ym = (select base_ym from date) -- 기준월
+	and substring(sigungu_cd||bjdong_cd||case when plat_gb_cd = '0' then '1' else plat_gb_cd end||bun||ji, 1, 2) = '44' -- test =============================================================
+) as t2
+	on t1.mgm_bldrgst_pk = t2.mgm_bldrgst_pk
+limit 10;
+
+
+
+with date as (
+    select '202211'::text as base_ym
+)
+select distinct *
+from (
+	select atch_gb_cd_nm
+	from m1.building_permit_flr_info
+	where base_ym = (select base_ym from date) -- 기준월
+	and substring(sigungu_cd||bjdong_cd||case when plat_gb_cd = '0' then '1' else plat_gb_cd end||bun||ji, 1, 2) = '44' -- test =============================================================
+)
+;
+
+with date as (
+    select '202211'::text as base_ym
+)
+select distinct mgm_bldrgst_pk, atch_gb_cd_nm
+from m1.building_permit_flr_info
+where base_ym = (select base_ym from date) -- 기준월
+and substring(sigungu_cd||bjdong_cd||case when plat_gb_cd = '0' then '1' else plat_gb_cd end||bun||ji, 1, 2) = '44' -- test =============================================================
+limit 100;
 
 
 
@@ -29,14 +74,17 @@ with date as (
     select '202211'::text as base_ym
 )
 --select count(*)
-select t1.pnu
+select case when t1.pnu isnull then t2.pnu else t1.pnu end -- pnu 
 	, '202211' as base_ym
+	, t1.mgm_bldrgst_pk, t2.mgm_bldrgst_flr_pk -- PK
 	, t1.bjdong_cd -- 법정동 코드
-	, t1.main_purps_cd_nm -- 주용도
-	, t1.arch_gb_cd_nm -- 허가구분
+	, case when t2.main_purps_cd_nm isnull then t1.main_purps_cd_nm else t2.main_purps_cd_nm end -- 주용도
+	, t1.arch_gb_cd_nm
+--	, case when t2.arch_gb_cd_nm isnull then t1.arch_gb_cd_nm else t2.arch_gb_cd_nm end -- 허가구분
 	, t3.jimok -- 지목
 	, t4.prpos_area_dstrc_nm -- 용도지역
-	, t1.bld_nm, t1.plat_area, t1.arch_area, t1.bc_rat, t1.tot_area, t1.vl_rat_estm_tot_area, t1.vl_rat, t1.main_bld_cnt, t1.atch_bld_dong_cnt -- 건문 정보
+	, case when t2.bld_nm isnull then t1.bld_nm else t2.bld_nm end -- 건물명
+	, t1.plat_area, t1.arch_area, t1.bc_rat, t1.tot_area, t1.vl_rat_estm_tot_area, t1.vl_rat, t1.main_bld_cnt, t1.atch_bld_dong_cnt -- 건문 정보
 	, t1.stcns_sched_day, t1.stcns_delay_day, t1.real_stcns_day, t1.arch_pms_day, t1.use_apr_day -- 날짜 관련
 	, t3.poly -- cremao_permit_point 에만 적재
 from (
@@ -82,6 +130,12 @@ left join (
     group by 1
 ) t4
 	on nvl(t1.pnu, t2.pnu, t3.pnu) = t4.pnu
+left join (
+	select distinct mgm_bldrgst_pk, atch_gb_cd_nm
+	from m1.building_permit_flr_info
+	where base_ym = (select base_ym from date) -- 기준월
+	and substring(sigungu_cd||bjdong_cd||case when plat_gb_cd = '0' then '1' else plat_gb_cd end||bun||ji, 1, 2) = '44' -- test =============================================================
+)
 where t1.pnu notnull and t2.pnu notnull
 limit 50;
 
