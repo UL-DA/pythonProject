@@ -1,4 +1,3 @@
-
 -- test1
 with date as (
     select '202211'::text as base_ym
