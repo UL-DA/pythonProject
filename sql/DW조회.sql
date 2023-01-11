@@ -116,10 +116,13 @@ and schema = 'm2'
 and "table" like 'datadam_%'
 order by size desc;
 
--- 날짜계산
+-- 날짜계산1
 select arch_pms_day::timestamp + interval'3 day' as day1, arch_pms_day
 from m1.building_permit_info
 limit 100;
+
+-- 날짜계산2
+select current_date - interval '3 year';
 
 -- 좌표 변환 조회
 select ST_Transform(ST_SetSRID(poly::geometry, 5174), 4326)::geography
